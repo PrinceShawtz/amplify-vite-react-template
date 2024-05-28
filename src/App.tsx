@@ -1,55 +1,63 @@
-
-import { Authenticator } from '@aws-amplify/ui-react'
-import '@aws-amplify/ui-react/styles.css'
+import { Authenticator } from '@aws-amplify/ui-react';
+import '@aws-amplify/ui-react/styles.css';
 import { useEffect, useState } from "react";
 import type { Schema } from "../amplify/data/resource";
 import { generateClient } from "aws-amplify/data";
 
-const client = generateClient<Schema>();
+// Define the Todo type
+interface Todo {
+  id: string;
+  content: string;
+}
 
 function App() {
-  const [todos, setTodos] = useState<Array<Schema["Todo"]["type"]>>([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const client = generateClient<Schema>();
 
   useEffect(() => {
-    client.models.Todo.observeQuery().subscribe({
-      next: (data) => setTodos([...data.items]),
-    });
-  }, []);
+    async function fetchTodos() {
+      const todos = await client.models.Todo.list();
+      setTodos(todos.items);
+    }
 
-  function createTodo() {
-    client.models.Todo.create({ content: window.prompt("Todo content") });
+    fetchTodos();
+  }, []); // Add an empty dependency array to run only once
+
+  async function createTodo() {
+    const content = window.prompt("Todo content");
+    if (content) {
+      const newTodo = await client.models.Todo.create({ content });
+      setTodos([...todos, newTodo]);
+    }
   }
 
-  function deleteTodo(id: string) {
-    client.models.Todo.delete({ id })
+  async function deleteTodo(id: string) {
+    await client.models.Todo.delete({ id });
+    setTodos(todos.filter(todo => todo.id !== id));
   }
 
   return (
-        
     <Authenticator>
       {({ signOut, user }) => (
-    <main>
-      <h1>My todos</h1>
-      <button onClick={createTodo}>+ new</button>
-      <ul>
-        {todos.map((todo) => (
-          <li 
-          onClick={() => deleteTodo(todo.id)}
-          key={todo.id}>{todo.content}</li>
-        ))}
-      </ul>
-      <div>
-        🥳 App successfully hosted. Try creating a new todo.
-        <br />
-        <a href="https://docs.amplify.aws/react/start/quickstart/#make-frontend-updates">
-          Review next step of this tutorial.
-        </a>
-      </div>
-      <button onClick={signOut}>Sign out</button>
-    </main>
-        
+        <main>
+          <h1>My todos</h1>
+          <button onClick={createTodo}>+ new</button>
+          <ul>
+            {todos.map((todo) => (
+              <li key={todo.id} onClick={() => deleteTodo(todo.id)}>
+                {todo.content}
+              </li>
+            ))}
+          </ul>
+          <div>
+            <a href="https://docs.amplify.aws/ui/start">
+              Review next step of this tutorial.
+            </a>
+          </div>
+          <button onClick={signOut}>Sign out</button>
+        </main>
       )}
-      </Authenticator>
+    </Authenticator>
   );
 }
 
